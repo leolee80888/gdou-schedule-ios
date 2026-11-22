@@ -1,0 +1,71 @@
+name: build-ipa
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+    timeout-minutes: 40
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: |
+          sudo xcode-select -s /Applications/Xcode.app
+          xcodebuild -version
+
+      - name: Install XcodeGen
+        run: |
+          brew install xcodegen
+          xcodegen --version
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Build unsigned .app
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project GdouSchedule.xcodeproj \
+            -scheme GdouSchedule \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            -archivePath build/GdouSchedule.xcarchive \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            DEVELOPMENT_TEAM="" \
+            archive | tail -60
+
+      - name: Package unsigned IPA
+        run: |
+          set -euo pipefail
+          APP=$(find build/GdouSchedule.xcarchive/Products/Applications -maxdepth 1 -name "*.app" | head -1)
+          echo "APP=$APP"
+          test -n "$APP"
+          rm -rf Payload GdouSchedule-unsigned.ipa
+          mkdir -p Payload
+          cp -R "$APP" Payload/
+          zip -qry GdouSchedule-unsigned.ipa Payload
+          ls -lh GdouSchedule-unsigned.ipa
+          unzip -l GdouSchedule-unsigned.ipa | head -20
+          echo "--- 二进制架构 ---"
+          file "Payload/$(basename "$APP")/GdouSchedule"
+          echo "--- 内置网页 ---"
+          ls -lh "Payload/$(basename "$APP")/index.html"
+          shasum -a 256 GdouSchedule-unsigned.ipa
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: GdouSchedule-unsigned-ipa
+          path: GdouSchedule-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 90
