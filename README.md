@@ -1,4 +1,4 @@
-# 广海课表云 iOS 版（GdouSchedule iOS）
+﻿# 广海课表云 iOS 版（GdouSchedule iOS）
 
 「广海课表云」的 iOS 版本，界面与功能来自同项目的网页版 [gdou-schedule-web](https://github.com/leolee80888/gdou-schedule-web)，用 `WKWebView` 把单文件课表包成原生 App：
 
